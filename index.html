@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TCPDump Monitor - Расширенный</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="main-container">
+        <!-- Заголовок и управление -->
+        <div class="control-panel">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h1 class="mb-0 d-flex align-items-center">
+                        <img src="{{ url_for('static', filename='logo.png') }}" alt="Лого" style="height: 60px; margin-right: 10px;">
+                        PIZDOS
+                    </h1>
+                    <p class="mb-0 mt-2">Роутер: <strong>192.168.1.10</strong> | Интерфейс: <strong>br0</strong></p>
+                </div>
+                <div class="col-md-6 text-end">
+                    <div id="statusInfo">
+                        <h5><span class="status-indicator status-stopped"></span> Захват остановлен</h5>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="tcpdumpFilter" 
+                               placeholder="Фильтр">
+                    </div>
+                    <div class="exclude-ports-input">
+                        <div class="input-group input-group-sm">
+                            <input type="text" class="form-control" id="excludePorts" 
+                                   placeholder="Исключить порты ">
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select verbose-selector" id="verboseLevel">
+                        <option value="1">Обычный (-v)</option>
+                        <option value="2" selected>Подробный (-vv)</option>
+                        <option value="3">Максимальный (-vvv)</option>
+                    </select>
+                <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="excludeSSH" checked>
+                        <label class="form-check-label" for="excludeSSH">
+                            <small>Исключить SSH (порт 22)</small>
+                        </label>
+                </div>
+                </div>
+                <div class="col-md-3 text-end">
+                    <button class="btn btn-success btn-custom" id="startBtn">
+                        <i class="fas fa-play"></i> Начать
+                    </button>
+                    <button class="btn btn-danger btn-custom" id="stopBtn" disabled>
+                        <i class="fas fa-stop"></i> Остановить
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Панель исключений -->
+        <div class="exclusion-panel">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <strong><i class="fas fa-shield-alt"></i> Активные исключения:</strong>
+                    <span id="exclusionTags">
+                        <span class="exclusion-tag">SSH (22)</span>
+                    </span>
+                </div>
+                <div id="currentFilterDisplay" class="current-filter" style="display: none;">
+                    <strong>Текущий фильтр:</strong> <span id="currentFilterText"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Статистика -->
+        <div class="row">
+            <div class="col-md-2">
+                <div class="stats-card">
+                    <i class="fas fa-chart-bar"></i>
+                    <div class="stats-number" id="totalPackets">0</div>
+                    <div>Всего</div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="stats-card">
+                    <i class="fas fa-exchange-alt"></i>
+                    <div class="stats-number" id="tcpPackets">0</div>
+                    <div>TCP</div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="stats-card">
+                    <i class="fas fa-broadcast-tower"></i>
+                    <div class="stats-number" id="udpPackets">0</div>
+                    <div>UDP</div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="stats-card">
+                    <i class="fas fa-network-wired"></i>
+                    <div class="stats-number" id="arpPackets">0</div>
+                    <div>ARP</div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="stats-card">
+                    <i class="fas fa-ping-pong-paddle-ball"></i>
+                    <div class="stats-number" id="icmpPackets">0</div>
+                    <div>ICMP</div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="stats-card">
+                    <i class="fas fa-clock"></i>
+                    <div class="stats-number" id="packetsPerSec">0</div>
+                    <div>Пакетов/сек</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Панель фильтрации -->
+        <div class="filter-panel">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="liveFilter" 
+                               placeholder="Поиск">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <button class="btn btn-outline-primary btn-sm quick-filter" data-filter="">Все</button>
+                    <button class="btn btn-outline-success btn-sm quick-filter" data-filter="TCP">TCP</button>
+                    <button class="btn btn-outline-warning btn-sm quick-filter" data-filter="UDP">UDP</button>
+                    <button class="btn btn-outline-danger btn-sm quick-filter" data-filter="ARP">ARP</button>
+                    <button class="btn btn-outline-info btn-sm quick-filter" data-filter="ICMP">ICMP</button>
+                    <button class="btn btn-outline-secondary btn-sm" id="clearLogBtn">
+                        <i class="fas fa-trash"></i> Очистить
+                    </button>
+                    <button class="btn btn-outline-info btn-sm" id="pauseBtn">
+                        <i class="fas fa-pause"></i> Пауза
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Лог трафика -->
+        <div class="card">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">Пакетов: <span id="logLineCount">0</span></small>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="log-container" id="logContainer">
+                    <div class="text-center text-muted p-4">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для деталей пакета -->
+    <div class="modal fade packet-modal" id="packetModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-info-circle"></i> Детали пакета #<span id="packetId"></span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <!-- Информация об IP адресах -->
+                        <div class="col-md-6" id="ipInfoSection">
+                            <div id="srcIpInfo" class="ip-details-card" style="display: none;">
+                                <h6><i class="fas fa-arrow-up"></i> Источник</h6>
+                                <div class="ip-detail-item">
+                                    <span>IP адрес:</span>
+                                    <span id="srcIpAddress"></span>
+                                </div>
+                                <div class="ip-detail-item">
+                                    <span>Провайдер:</span>
+                                    <span id="srcProvider"></span>
+                                </div>
+                                <div class="ip-detail-item">
+                                    <span>Страна:</span>
+                                    <span id="srcCountry"></span>
+                                </div>
+                                <div class="ip-detail-item">
+                                    <span>Город:</span>
+                                    <span id="srcCity"></span>
+                                </div>
+                                <div class="ip-detail-item">
+                                    <span>Сервис:</span>
+                                    <span id="srcService"></span>
+                                </div>
+                            </div>
+                            
+                            <div id="dstIpInfo" class="ip-details-card" style="display: none;">
+                                <h6><i class="fas fa-arrow-down"></i> Назначение</h6>
+                                <div class="ip-detail-item">
+                                    <span>IP адрес:</span>
+                                    <span id="dstIpAddress"></span>
+                                </div>
+                                <div class="ip-detail-item">
+                                    <span>Провайдер:</span>
+                                    <span id="dstProvider"></span>
+                                </div>
+                                <div class="ip-detail-item">
+                                    <span>Страна:</span>
+                                    <span id="dstCountry"></span>
+                                </div>
+                                <div class="ip-detail-item">
+                                    <span>Город:</span>
+                                    <span id="dstCity"></span>
+                                </div>
+                                <div class="ip-detail-item">
+                                    <span>Сервис:</span>
+                                    <span id="dstService"></span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Парсированные данные -->
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-cogs"></i> Парсированные данные</h6>
+                            <div id="parsedData" class="packet-raw-content" style="max-height: 300px;"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6><i class="fas fa-code"></i> Исходные данные пакета</h6>
+                            <div id="rawPacketData" class="packet-raw-content"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    
+    <script>
+        const socket = io();
+        let isPaused = false;
+        let autoScroll = true;
+        let packets = [];
+        let stats = {
+            total: 0,
+            tcp: 0,
+            udp: 0,
+            arp: 0,
+            icmp: 0,
+            other: 0,
+            startTime: null,
+            lastSecond: 0,
+            packetsThisSecond: 0
+        };
+
+        // Элементы DOM
+        const logContainer = document.getElementById('logContainer');
+        const totalPacketsEl = document.getElementById('totalPackets');
+        const tcpPacketsEl = document.getElementById('tcpPackets');
+        const udpPacketsEl = document.getElementById('udpPackets');
+        const arpPacketsEl = document.getElementById('arpPackets');
+        const icmpPacketsEl = document.getElementById('icmpPackets');
+        const packetsPerSecEl = document.getElementById('packetsPerSec');
+        const statusInfo = document.getElementById('statusInfo');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const clearLogBtn = document.getElementById('clearLogBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const liveFilter = document.getElementById('liveFilter');
+        const tcpdumpFilter = document.getElementById('tcpdumpFilter');
+        const verboseLevel = document.getElementById('verboseLevel');
+        const excludeSSH = document.getElementById('excludeSSH');
+        const excludePorts = document.getElementById('excludePorts');
+        const logLineCount = document.getElementById('logLineCount');
+        const exclusionTags = document.getElementById('exclusionTags');
+        const currentFilterDisplay = document.getElementById('currentFilterDisplay');
+        const currentFilterText = document.getElementById('currentFilterText');
+
+        // Модальное окно
+        const packetModal = new bootstrap.Modal(document.getElementById('packetModal'));
+
+        // WebSocket события
+        socket.on('new_packet', function(data) {
+            if (!isPaused) {
+                addDetailedPacketToLog(data);
+                updateStats(data.parsed);
+            }
+            packets.push(data);
+        });
+
+        socket.on('status', function(data) {
+            updateStatus(data.is_running);
+        });
+
+        // Обработчики событий
+        startBtn.addEventListener('click', startCapture);
+        stopBtn.addEventListener('click', stopCapture);
+        clearLogBtn.addEventListener('click', clearLog);
+        pauseBtn.addEventListener('click', togglePause);
+        liveFilter.addEventListener('input', filterLog);
+        excludeSSH.addEventListener('change', updateExclusionTags);
+        excludePorts.addEventListener('input', updateExclusionTags);
+
+        // Быстрые фильтры
+        document.querySelectorAll('.quick-filter').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const filter = this.dataset.filter;
+                liveFilter.value = filter;
+                filterLog();
+                
+                document.querySelectorAll('.quick-filter').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        function updateExclusionTags() {
+            let tags = [];
+            
+            if (excludeSSH.checked) {
+                tags.push('<span class="exclusion-tag">SSH (22)</span>');
+            }
+            
+            const ports = excludePorts.value.split(',').map(p => p.trim()).filter(p => p && p.match(/^\d+$/));
+            ports.forEach(port => {
+                tags.push(`<span class="exclusion-tag">Порт ${port}</span>`);
+            });
+            
+            if (tags.length === 0) {
+                tags.push('<span class="text-muted">Нет исключений</span>');
+            }
+            
+            exclusionTags.innerHTML = tags.join(' ');
+        }
+
+        function startCapture() {
+            const filter = tcpdumpFilter.value.trim();
+            const verbose = verboseLevel.value;
+            const excludeSSHValue = excludeSSH.checked;
+            const excludePortsList = excludePorts.value.split(',').map(p => p.trim()).filter(p => p && p.match(/^\d+$/));
+            
+            fetch('/api/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    filter: filter,
+                    verbose_level: parseInt(verbose),
+                    exclude_ssh: excludeSSHValue,
+                    exclude_ports: excludePortsList
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateStatus(true);
+                    showNotification('Расширенный захват запущен! SSH исключен.', 'success');
+                    stats.startTime = new Date();
+                    stats.lastSecond = Math.floor(Date.now() / 1000);
+                    
+                    // Показываем текущий фильтр
+                    if (data.filter) {
+                        currentFilterText.textContent = data.filter;
+                        currentFilterDisplay.style.display = 'block';
+                    }
+                } else {
+                    showNotification('Ошибка: ' + data.message, 'danger');
+                }
+            })
+            .catch(error => {
+                showNotification('Ошибка запроса: ' + error, 'danger');
+            });
+        }
+
+        function stopCapture() {
+            fetch('/api/stop', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                updateStatus(false);
+                showNotification('Захват остановлен', 'info');
+                currentFilterDisplay.style.display = 'none';
+            });
+        }
+
+        function clearLog() {
+            logContainer.innerHTML = '<div class="text-center text-muted p-4"><i class="fas fa-search-plus fa-2x mb-3"></i><h5>Лог очищен</h5></div>';
+            stats = { total: 0, tcp: 0, udp: 0, arp: 0, icmp: 0, other: 0, startTime: stats.startTime, lastSecond: 0, packetsThisSecond: 0 };
+            packets = [];
+            updateStatsDisplay();
+            logLineCount.textContent = '0';
+        }
+
+        function togglePause() {
+            isPaused = !isPaused;
+            pauseBtn.innerHTML = isPaused ? 
+                '<i class="fas fa-play"></i> Продолжить' : 
+                '<i class="fas fa-pause"></i> Пауза';
+            pauseBtn.className = isPaused ? 'btn btn-outline-success btn-sm' : 'btn btn-outline-info btn-sm';
+        }
+
+        function addDetailedPacketToLog(data) {
+            // Пропускаем hex dump строки
+            console.log("Получен пакет:", data); // Добавляем отладку
+            if (data.parsed.type === 'hex_dump' || data.parsed.type === 'ascii_dump' || data.parsed.type === 'http_data') {
+                console.log("Пропускаем пакет типа:", data.parsed.type);
+                return;
+            }
+
+            const packetDiv = document.createElement('div');
+            packetDiv.className = 'packet-detailed';
+            packetDiv.dataset.packetId = data.id;
+            
+            const parsed = data.parsed;
+            
+            if (parsed.protocol) {
+                packetDiv.dataset.protocol = parsed.protocol;
+            }
+            
+            let detailsHtml = '';
+            
+            if (parsed.type === 'ip') {
+                detailsHtml = createIPPacketDetails(parsed, data.timestamp, data.ip_info);
+            } else if (parsed.type === 'arp') {
+                detailsHtml = createARPPacketDetails(parsed, data.timestamp);
+            } else if (parsed.type === 'icmp') {
+                detailsHtml = createICMPPacketDetails(parsed, data.timestamp, data.ip_info);
+            } else {
+                detailsHtml = createGenericPacketDetails(parsed, data.timestamp);
+            }
+            
+            packetDiv.innerHTML = detailsHtml;
+            packetDiv.dataset.content = data.raw.toLowerCase();
+            
+            // Добавляем обработчик клика
+            packetDiv.addEventListener('click', () => showPacketDetails(data.id));
+            
+            logContainer.appendChild(packetDiv);
+            
+            // Применяем фильтр
+            const currentFilter = liveFilter.value.toLowerCase();
+            if (currentFilter && !data.raw.toLowerCase().includes(currentFilter)) {
+                packetDiv.classList.add('packet-hidden');
+            }
+            
+            // Автопрокрутка
+            if (autoScroll) {
+                logContainer.scrollTop = logContainer.scrollHeight;
+            }
+            
+            // Ограничиваем количество пакетов
+            if (logContainer.children.length > 1000) {
+                logContainer.removeChild(logContainer.firstChild);
+            }
+            
+            logLineCount.textContent = logContainer.children.length;
+        }
+
+        function createIPPacketDetails(parsed, timestamp, ipInfo) {
+            const protocolClass = `protocol-${parsed.protocol.toLowerCase()}`;
+            const directionClass = `direction-${parsed.direction.toLowerCase()}`;
+            
+            // Создаем информацию об IP адресах
+            let srcIpInfoHtml = '';
+            let dstIpInfoHtml = '';
+            
+            if (ipInfo && ipInfo.src_info) {
+                const info = ipInfo.src_info;
+                const infoClass = info.is_local ? 'local' : '';
+                const serviceText = info.service ? ` | ${info.service}` : '';
+                srcIpInfoHtml = `<span class="ip-info ${infoClass}">${info.provider}, ${info.country}${serviceText}</span>`;
+            }
+            
+            if (ipInfo && ipInfo.dst_info) {
+                const info = ipInfo.dst_info;
+                const infoClass = info.is_local ? 'local' : '';
+                const serviceText = info.service ? ` | ${info.service}` : '';
+                dstIpInfoHtml = `<span class="ip-info ${infoClass}">${info.provider}, ${info.country}${serviceText}</span>`;
+            }
+            
+            return `
+                <div class="packet-header">
+                    <div>
+                        <span class="packet-protocol ${protocolClass}">${parsed.protocol}</span>
+                        <span class="packet-direction ${directionClass}">${parsed.direction}</span>
+                        <span style="margin-left: 10px; color: #adb5bd;">[${timestamp}]</span>
+                    </div>
+                    <div style="font-size: 10px; color: #6c757d;">
+                        ${parsed.src_ip}:${parsed.src_port} → ${parsed.dst_ip}:${parsed.dst_port}
+                    </div>
+                </div>
+                <div class="packet-details">
+                    <div class="detail-item">
+                        <span class="detail-label">Источник:</span>
+                        <span class="detail-value">
+                            ${parsed.src_ip}:${parsed.src_port}
+                            ${parsed.src_hostname ? `<span class="hostname">(${parsed.src_hostname})</span>` : ''}
+                            ${srcIpInfoHtml}
+                        </span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Назначение:</span>
+                        <span class="detail-value">
+                            ${parsed.dst_ip}:${parsed.dst_port}
+                            ${parsed.dst_hostname ? `<span class="hostname">(${parsed.dst_hostname})</span>` : ''}
+                            ${parsed.service ? `<span class="service-name">[${parsed.service}]</span>` : ''}
+                            ${dstIpInfoHtml}
+                        </span>
+                    </div>
+                    ${parsed.flags ? `
+                    <div class="detail-item">
+                        <span class="detail-label">TCP Флаги:</span>
+                        <span class="detail-value tcp-flags">${parsed.flags}</span>
+                    </div>` : ''}
+                    ${parsed.seq ? `
+                    <div class="detail-item">
+                        <span class="detail-label">Sequence:</span>
+                        <span class="detail-value">${parsed.seq}</span>
+                    </div>` : ''}
+                    ${parsed.size ? `
+                    <div class="detail-item">
+                        <span class="detail-label">Размер:</span>
+                        <span class="detail-value">${parsed.size} байт</span>
+                    </div>` : ''}
+                    ${parsed.window ? `
+                    <div class="detail-item">
+                        <span class="detail-label">Окно:</span>
+                        <span class="detail-value">${parsed.window}</span>
+                    </div>` : ''}
+                    ${parsed.ttl ? `
+                    <div class="detail-item">
+                        <span class="detail-label">TTL:</span>
+                        <span class="detail-value">${parsed.ttl}</span>
+                    </div>` : ''}
+                    ${parsed.data_summary ? `
+                    <div class="detail-item">
+                        <span class="detail-label">Тип данных:</span>
+                        <span class="detail-value">${parsed.data_summary}</span>
+                    </div>` : ''}
+                </div>
+            `;
+        }
+
+        function createARPPacketDetails(parsed, timestamp) {
+            return `
+                <div class="packet-header">
+                    <div>
+                        <span class="packet-protocol protocol-arp">ARP</span>
+                        <span style="margin-left: 10px; color: #adb5bd;">[${timestamp}]</span>
+                    </div>
+                    <div style="font-size: 10px; color: #6c757d;">
+                        ${parsed.arp_type || 'ARP Packet'}
+                    </div>
+                </div>
+                <div class="packet-details">
+                    ${parsed.target_ip ? `
+                    <div class="detail-item">
+                        <span class="detail-label">Запрос для:</span>
+                        <span class="detail-value">
+                            ${parsed.target_ip}
+                            ${parsed.target_hostname ? `<span class="hostname">(${parsed.target_hostname})</span>` : ''}
+                        </span>
+                    </div>` : ''}
+                    ${parsed.sender_ip ? `
+                    <div class="detail-item">
+                        <span class="detail-label">Отправитель:</span>
+                        <span class="detail-value">
+                            ${parsed.sender_ip}
+                            ${parsed.sender_hostname ? `<span class="hostname">(${parsed.sender_hostname})</span>` : ''}
+                        </span>
+                    </div>` : ''}
+                    ${parsed.sender_mac ? `
+                    <div class="detail-item">
+                        <span class="detail-label">MAC адрес:</span>
+                        <span class="detail-value">${parsed.sender_mac}</span>
+                    </div>` : ''}
+                </div>
+            `;
+        }
+
+        function createICMPPacketDetails(parsed, timestamp, ipInfo) {
+            const directionClass = `direction-${parsed.direction ? parsed.direction.toLowerCase() : 'unknown'}`;
+            
+            // Создаем информацию об IP адресах
+            let srcIpInfoHtml = '';
+            let dstIpInfoHtml = '';
+            
+            if (ipInfo && ipInfo.src_info) {
+                const info = ipInfo.src_info;
+                const infoClass = info.is_local ? 'local' : '';
+                const serviceText = info.service ? ` | ${info.service}` : '';
+                srcIpInfoHtml = `<span class="ip-info ${infoClass}">${info.provider}, ${info.country}${serviceText}</span>`;
+            }
+            
+            if (ipInfo && ipInfo.dst_info) {
+                const info = ipInfo.dst_info;
+                const infoClass = info.is_local ? 'local' : '';
+                const serviceText = info.service ? ` | ${info.service}` : '';
+                dstIpInfoHtml = `<span class="ip-info ${infoClass}">${info.provider}, ${info.country}${serviceText}</span>`;
+            }
+            
+            return `
+                <div class="packet-header">
+                    <div>
+                        <span class="packet-protocol protocol-icmp">ICMP</span>
+                        ${parsed.direction ? `<span class="packet-direction ${directionClass}">${parsed.direction}</span>` : ''}
+                        <span style="margin-left: 10px; color: #adb5bd;">[${timestamp}]</span>
+                    </div>
+                    <div style="font-size: 10px; color: #6c757d;">
+                        ${parsed.icmp_type || 'ICMP Packet'}
+                    </div>
+                </div>
+                <div class="packet-details">
+                    ${parsed.src_ip ? `
+                    <div class="detail-item">
+                        <span class="detail-label">Источник:</span>
+                        <span class="detail-value">
+                            ${parsed.src_ip}
+                            ${parsed.src_hostname ? `<span class="hostname">(${parsed.src_hostname})</span>` : ''}
+                            ${srcIpInfoHtml}
+                        </span>
+                    </div>` : ''}
+                    ${parsed.dst_ip ? `
+                    <div class="detail-item">
+                        <span class="detail-label">Назначение:</span>
+                        <span class="detail-value">
+                            ${parsed.dst_ip}
+                            ${parsed.dst_hostname ? `<span class="hostname">(${parsed.dst_hostname})</span>` : ''}
+                            ${dstIpInfoHtml}
+                        </span>
+                    </div>` : ''}
+                </div>
+            `;
+        }
+
+        function createGenericPacketDetails(parsed, timestamp) {
+            return `
+                <div class="packet-header">
+                    <div>
+                        <span class="packet-protocol protocol-ip">${parsed.protocol || 'OTHER'}</span>
+                        <span style="margin-left: 10px; color: #adb5bd;">[${timestamp}]</span>
+                    </div>
+                </div>
+                <div style="font-family: monospace; font-size: 10px; color: #6c757d; margin-top: 8px;">
+                    ${parsed.data || ''}
+                </div>
+            `;
+        }
+
+        function showPacketDetails(packetId) {
+            // Получаем детали пакета с сервера
+            fetch(`/api/packet/${packetId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        showNotification('Ошибка получения деталей пакета: ' + data.error, 'danger');
+                        return;
+                    }
+                    
+                    // Заполняем модальное окно
+                    document.getElementById('packetId').textContent = packetId;
+                    document.getElementById('rawPacketData').textContent = data.raw;
+                    document.getElementById('parsedData').textContent = JSON.stringify(data.parsed, null, 2);
+                    
+                    // Показываем информацию об IP адресах
+                    const srcIpInfo = document.getElementById('srcIpInfo');
+                    const dstIpInfo = document.getElementById('dstIpInfo');
+                    
+                    // Скрываем блоки по умолчанию
+                    srcIpInfo.style.display = 'none';
+                    dstIpInfo.style.display = 'none';
+                    
+                    // Ищем IP информацию в пакетах
+                    const packetData = packets.find(p => p.id === packetId);
+                    if (packetData && packetData.ip_info) {
+                        if (packetData.ip_info.src_info && data.parsed.src_ip) {
+                            const info = packetData.ip_info.src_info;
+                            document.getElementById('srcIpAddress').textContent = data.parsed.src_ip;
+                            document.getElementById('srcProvider').textContent = info.provider;
+                            document.getElementById('srcCountry').textContent = info.country;
+                            document.getElementById('srcCity').textContent = info.city;
+                            document.getElementById('srcService').textContent = info.service || 'Неизвестно';
+                            srcIpInfo.style.display = 'block';
+                        }
+                        
+                        if (packetData.ip_info.dst_info && data.parsed.dst_ip) {
+                            const info = packetData.ip_info.dst_info;
+                            document.getElementById('dstIpAddress').textContent = data.parsed.dst_ip;
+                            document.getElementById('dstProvider').textContent = info.provider;
+                            document.getElementById('dstCountry').textContent = info.country;
+                            document.getElementById('dstCity').textContent = info.city;
+                            document.getElementById('dstService').textContent = info.service || 'Неизвестно';
+                            dstIpInfo.style.display = 'block';
+                        }
+                    }
+                    
+                    // Показываем модальное окно
+                    packetModal.show();
+                })
+                .catch(error => {
+                    showNotification('Ошибка загрузки деталей пакета: ' + error, 'danger');
+                });
+        }
+
+        function updateStats(parsed) {
+            stats.total++;
+            
+            if (parsed.protocol === 'TCP') {
+                stats.tcp++;
+            } else if (parsed.protocol === 'UDP') {
+                stats.udp++;
+            } else if (parsed.protocol === 'ARP' || parsed.type === 'arp') {
+                stats.arp++;
+            } else if (parsed.protocol === 'ICMP' || parsed.type === 'icmp') {
+                stats.icmp++;
+            } else {
+                stats.other++;
+            }
+            
+            const currentSecond = Math.floor(Date.now() / 1000);
+            if (currentSecond === stats.lastSecond) {
+                stats.packetsThisSecond++;
+            } else {
+                stats.lastSecond = currentSecond;
+                stats.packetsThisSecond = 1;
+            }
+            
+            updateStatsDisplay();
+        }
+
+        function updateStatsDisplay() {
+            totalPacketsEl.textContent = stats.total;
+            tcpPacketsEl.textContent = stats.tcp;
+            udpPacketsEl.textContent = stats.udp;
+            arpPacketsEl.textContent = stats.arp;
+            icmpPacketsEl.textContent = stats.icmp;
+            packetsPerSecEl.textContent = stats.packetsThisSecond;
+        }
+
+        function updateStatus(isRunning) {
+            startBtn.disabled = isRunning;
+            stopBtn.disabled = !isRunning;
+            
+            const indicator = isRunning ? 
+                '<h5><span class="status-indicator status-running"></span> Расширенный захват активен</h5>' :
+                '<h5><span class="status-indicator status-stopped"></span> Захват остановлен</h5>';
+            
+            statusInfo.innerHTML = indicator;
+        }
+
+        function filterLog() {
+            const filterText = liveFilter.value.toLowerCase();
+            const packets = logContainer.querySelectorAll('.packet-detailed');
+            
+            packets.forEach(packet => {
+                if (filterText === '' || packet.dataset.content.includes(filterText)) {
+                    packet.classList.remove('packet-hidden');
+                } else {
+                    packet.classList.add('packet-hidden');
+                }
+            });
+        }
+
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+            notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            notification.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 5000);
+        }
+
+        // Отслеживание прокрутки
+        logContainer.addEventListener('scroll', function() {
+            const isAtBottom = logContainer.scrollTop + logContainer.clientHeight >= logContainer.scrollHeight - 10;
+            autoScroll = isAtBottom;
+        });
+
+        // Проверяем статус при загрузке
+        fetch('/api/status')
+            .then(response => response.json())
+            .then(data => {
+                updateStatus(data.is_running);
+            });
+
+        // Инициализация
+        document.querySelector('.quick-filter[data-filter=""]').classList.add('active');
+        updateExclusionTags();
+    </script>
+</body>
+</html>
