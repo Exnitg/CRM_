@@ -1,0 +1,403 @@
+        body {
+            background-color: #000000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .main-container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .control-panel {
+            background: #000000;
+            color: rgb(255, 255, 255);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .exclusion-panel {
+            background-color: #000000;
+            border: 1px solid #000000;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            color: white;
+        }
+        
+        .exclusion-tag {
+            display: inline-block;
+            background-color: #000000;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            margin: 2px;
+        }
+        
+        .log-container {
+            height: 700px;
+            overflow-y: auto;
+            border: 2px solid #000000;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+        }
+        
+        .packet-detailed {
+            margin: 8px 0;
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+            background: linear-gradient(90deg, rgba(0,123,255,0.1) 0%, rgba(0,123,255,0.05) 100%);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .packet-detailed:hover {
+            background: linear-gradient(90deg, rgba(0,123,255,0.2) 0%, rgba(0,123,255,0.1) 100%);
+            transform: translateX(5px);
+        }
+        
+        .packet-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        
+        .packet-protocol {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .protocol-tcp { background-color: #28a745; color: white; }
+        .protocol-udp { background-color: #ffc107; color: rgb(255, 255, 255); }
+        .protocol-icmp { background-color: #17a2b8; color: white; }
+        .protocol-arp { background-color: #dc3545; color: white; }
+        .protocol-ip { background-color: #6c757d; color: white; }
+        
+        .packet-direction {
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-size: 9px;
+            margin-left: 5px;
+        }
+        
+        .direction-inbound { background-color: #28a745; color: white; }
+        .direction-outbound { background-color: #dc3545; color: white; }
+        .direction-local { background-color: #17a2b8; color: white; }
+        .direction-external { background-color: #6c757d; color: white; }
+        
+        .packet-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 8px;
+            font-size: 10px;
+        }
+        
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .detail-label {
+            color: #adb5bd;
+            font-weight: bold;
+        }
+        
+        .detail-value {
+            color: #e0e0e0;
+            font-family: monospace;
+        }
+        
+        .hostname {
+            color: #ffc107;
+            font-style: italic;
+        }
+        
+        .service-name {
+            color: #28a745;
+            font-weight: bold;
+        }
+        
+        .tcp-flags {
+            color: #17a2b8;
+            font-weight: bold;
+        }
+        
+        .ip-info {
+            background-color: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 9px;
+            margin-left: 5px;
+            color: #ffc107;
+        }
+        
+        .ip-info.local {
+            background-color: rgba(40, 167, 69, 0.1);
+            border-color: rgba(40, 167, 69, 0.3);
+            color: #28a745;
+        }
+        
+        .packet-hidden {
+            display: none !important;
+        }
+        
+        .stats-card {
+            background: #000000;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        
+        .stats-number {
+            font-size: 2rem;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-running { background-color: #28a745; }
+        .status-stopped { background-color: #dc3545; animation: none; }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .btn-custom {
+            border-radius: 25px;
+            padding: 12px 30px;
+            font-weight: bold;
+            margin: 5px;
+            transition: all 0.3s ease;
+            border-color: #000000;
+        }
+        
+        .btn-custom:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        #startBtn {
+            background: linear-gradient(135deg, #000000, #000000);
+            color: white;
+        }
+
+        #stopBtn {
+            background: linear-gradient(135deg, #000000, #000000);
+            color: white;
+            border-color: #000000;
+        }
+
+        #stopBtn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+        
+        .filter-panel {
+            background-color: rgb(0, 0, 0);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .verbose-selector {
+            margin-left: 10px;
+        }
+        
+        .exclude-ports-input {
+            margin-top: 10px;
+        }
+        
+        .current-filter {
+            background-color: #000000;
+            border: 1px solid #000000;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            color: white;
+        }
+        
+        /* Модальное окно для деталей пакета */
+        .packet-modal .modal-dialog {
+            max-width: 90%;
+        }
+        
+.packet-raw-content {
+    background-color: #000000;
+    color: #e0e0e0;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    padding: 15px;
+    border-radius: 5px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 400px;
+    overflow-y: auto;
+}
+        
+.ip-details-card {
+    background-color: #000000;
+    color: white;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+        
+.ip-details-card h6 {
+margin-bottom: 10px;
+font-weight: bold;
+}
+        
+.ip-detail-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 5px;
+    font-size: 14px;
+}
+
+#tcpdumpFilter{
+    background: linear-gradient(135deg, #000000 0%, #000000 100%);
+    color: white;
+    border-radius: 50px;
+}
+
+#excludePorts{
+    background: linear-gradient(135deg, #000000 0%, #000000 100%);
+    color: white;
+    border-radius: 50px;
+}
+
+
+
+#verboseLevel {
+    border: 2px solid #000000;
+    background: linear-gradient(135deg, #000000 0%, #000000 100%);
+    color: white;
+    border-radius: 50px;
+}
+
+#verboseLevel:focus {
+    outline: none;
+    border-color: #000000;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+}
+
+#verboseLevel option {
+    color: #000;
+}
+
+
+
+#liveFilter{
+    background: linear-gradient(135deg, #000000 0%, #000000 100%);
+    color: white;
+    border-radius: 50px;
+    
+}
+
+
+.quick-filter,
+#clearLogBtn {
+    border: none;
+    padding: 8px 16px;
+    margin: 4px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.quick-filter:hover,
+#clearLogBtn:hover, #pauseBtn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+}
+
+.quick-filter.active {
+    outline: 3px solid rgba(0, 123, 255, 0.5);
+}
+
+.quick-filter[data-filter=""] {
+    background-color: #000000;
+    color: white;
+}
+
+.quick-filter[data-filter="TCP"] {
+    background-color: #000000;
+    color: white;
+}
+
+.quick-filter[data-filter="UDP"] {
+    background-color: #000000;
+    color: rgb(255, 255, 255);
+}
+
+.quick-filter[data-filter="ARP"] {
+    background-color: #000000;
+    color: white;
+}
+
+.quick-filter[data-filter="ICMP"] {
+    background-color: #000000;
+    color: white;
+}
+
+#clearLogBtn {
+    background-color: #000000;
+    color: white;
+}
+
+#pauseBtn
+{
+    background-color: #000000;
+    color: white;
+}
+
+.card-header{
+    background-color: #000000;
+    color: white;
+}
+
+.card{
+    background-color: #000000;
+    color: white;
+}
+
+.modal-content{
+    background-color: #000000;
+}
